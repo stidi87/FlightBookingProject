@@ -1,14 +1,22 @@
 package steps;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriver;	
+//import org.openqa.selenium.firefox.FirefoxDriver;	// uncomment when using Firefox
 
+
+import ryanair.Calendar;
+import ryanair.ContactDetails;
+import ryanair.FarePage;
 import ryanair.MainPage;
+import ryanair.PassengerDetails;
+import ryanair.PaymentDetails;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
@@ -17,14 +25,22 @@ public class TestingSteps {
 	
 	WebDriver driver;
 	String baseUrl;
-	MainPage mainSearch;
+	MainPage mainSearch;	// object for actions performed on the first page
+	Calendar calendar;		// object for the calendar
+	FarePage farePage;		// object for actions performed on the 'fare' page
+	PassengerDetails passengerDetails;		// object for handling the passengers details
+	ContactDetails contactDetails;			// object for handling the contact details
+	PaymentDetails paymentDetails;			// object for handling the payment details
+	
 	
 	@Given("^A user books a flight from Poland/Warsaw to United Kingdom/London from (\\d+)-(\\d+)-(\\d+) to (\\d+)-(\\d+)-(\\d+) for two adults and one child$")
-	public void a_user_books_a_flight_from_Poland_Warsaw_to_United_Kingdom_London_from_to_for_adults_and_child(String flyOutDay, String flyOutMonth, String flyOutYear, String flyBackDay, String flyBackMonth, String flyBackYear) throws Throwable {
+	public void a_user_books_a_flight_from_Poland_Warsaw_to_United_Kingdom_London_from_to_for_adults_and_child(String flyOutDay, String flyOutMonth, String flyOutYear, String flyBackDay, String flyBackMonth, String flyBackYear) throws Throwable {	
 		
-		System.setProperty("webdriver.chrome.driver", "C:\\Users\\user\\Desktop\\workspace\\chromedriver.exe");
-        driver = new ChromeDriver();
-        baseUrl = "https://www.ryanair.com/ie/en";       
+		System.setProperty("webdriver.chrome.driver", "C:\\Users\\user\\Desktop\\workspace\\chromedriver.exe");	// The path to the chromedriver. Comment it out when using Firefox.
+        driver = new ChromeDriver();	
+		//driver = new FirefoxDriver();	// uncomment when using Firefox
+        baseUrl = "https://www.ryanair.com/ie/en";
+        
         mainSearch = new MainPage(driver);
        
         // Maximize the browser's window
@@ -34,7 +50,6 @@ public class TestingSteps {
         
         // Click 'From' field
         mainSearch.clickDepartureAirport();
-        Thread.sleep(2000);
         
         // Scroll down, so that the countries and the cities are visible
         JavascriptExecutor jse = (JavascriptExecutor)driver;
@@ -43,191 +58,121 @@ public class TestingSteps {
         
         // Choose Poland as the country of origin
         mainSearch.setTheCountry("Poland");
-        Thread.sleep(2000);
         
         // Choose Warsaw (WMI) airport
         mainSearch.setTheCity("Warsaw (WMI)");
-        Thread.sleep(2000);
         
         // Choose United Kingdom as the destination
         mainSearch.setTheCountry("United Kingdom");
-        Thread.sleep(2000);
         
         // Choose London (STN) airport
         mainSearch.setTheCity("London (STN)");
-        Thread.sleep(2000);
         
-        // Create a calendar object
-        WebElement nextButton;
-        WebElement monthhh = driver.findElement(By.xpath("//core-datepicker[@fly-out='true']"));
+        calendar = new Calendar(driver);
         
-        // Move to August 2016
-        while (!monthhh.getText().contains("August 2016")) {
-		nextButton = driver.findElement(By.xpath("//button[@class='arrow right']"));
-		nextButton.click();
-		monthhh = driver.findElement(By.xpath("//core-datepicker[@fly-out='true']"));
-        }
-        Thread.sleep(2000);
+        // Move to a specific month and pick the fly out/fly back dates
+        calendar.moveToAGivenMonth("August");
+        calendar.setTheFlyOutDay(flyOutDay, flyOutMonth, flyOutYear);
+        calendar.setTheFlyBackDay(flyBackDay, flyBackMonth, flyBackYear);
         
-        // Pick the fly out day
-        driver.findElement(By.xpath("//h1[contains(text(), 'August 2016')]//following::ul[@class='days']//li[@data-id='"+flyOutDay+"-"+flyOutMonth+"-"+flyOutYear+"']")).click();
-        Thread.sleep(2000);
+        // Choose 2 adults and 1 child
+        mainSearch.setPassengers();
+        mainSearch.incrementAdults();
+        mainSearch.incrementChildren();
         
-        // Pick the fly back day
-        driver.findElement(By.xpath("//h1[contains(text(), 'August 2016')]//following::ul[@class='days']//li[@data-id='"+flyBackDay+"-"+flyBackMonth+"-"+flyBackYear+"']")).click();
-        Thread.sleep(2000);
-        
-        // Passengers
-        driver.findElement(By.xpath("//div[@class='dropdown-handle']")).click();
-        Thread.sleep(2000);
-        
-        // Increment Adults by one
-        driver.findElement(By.xpath("//div[@label='Adults']//button[@class='core-btn inc core-btn-wrap has-disabled-click']")).click();
-        Thread.sleep(2000);
-        
-        // Add one child
-        driver.findElement(By.xpath("//div[@label='Children']//button[@class='core-btn inc core-btn-wrap has-disabled-click']")).click();
-        Thread.sleep(2000);
-        
-        // Let's go
-        driver.findElement(By.xpath("//button[@class='core-btn-primary core-btn-block core-btn-big']")).click();
-        Thread.sleep(2000);
+        // Click Let's go
+        mainSearch.clickLetsGo();
 	}
 
 	@Given("^Correctly provide the rest of the details up to the payment page$")
 	public void correctly_provide_the_rest_of_the_details_up_to_the_payment_page() throws Throwable {
+		
+        farePage = new FarePage(driver);
+		
 		// Outbound direction
-        driver.findElement(By.xpath("(//div[@id='outbound']//span[@class='standard-fare'])[1]")).click();
-        Thread.sleep(2000);
+		farePage.chooseOutboundFare();		// pick the first option from the available fares
         
         // Inbound direction
-        driver.findElement(By.xpath("(//div[@id='inbound']//span[@class='standard-fare'])[1]")).click();
-        Thread.sleep(2000);
+        farePage.chooseInboundFare();		// pick the first option from the available fares
         
         // Continue to the next page
-        driver.findElement(By.id("continue")).click();
-        Thread.sleep(5000);
+        farePage.clickContinue();
         
         // Check out
-        driver.findElement(By.xpath("//button[@class='core-btn-primary core-btn-medium']")).click();
-        Thread.sleep(2000);
+        farePage.clickCheckOut();
         
-        // Scroll down
-        JavascriptExecutor jse = (JavascriptExecutor)driver;
-        jse.executeScript("scroll(0, 250);");
-        Thread.sleep(2000);
+        passengerDetails = new PassengerDetails(driver);
         
         // The first adult details 
-        driver.findElement(By.xpath("(//label[contains(text(), 'Title')]//following-sibling::div[@class='core-select'])[1]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(.//option[@label='Mr'])[1]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//input[@name='firstName'])[1]")).sendKeys("Mathew");
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//input[@name='surname'])[1]")).sendKeys("Smith");
-        Thread.sleep(2000);
+        passengerDetails.clickTheAdult(1);
+        passengerDetails.selectTheTitle("Mr", 1);
+        passengerDetails.provideTheFirstName("Tony", 1);
+        passengerDetails.provideTheSurname("Smith", 1);
         
         // The second adult details
-        driver.findElement(By.xpath("(//label[contains(text(), 'Title')]//following-sibling::div[@class='core-select'])[2]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(.//option[@label='Mrs'])[2]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//input[@name='firstName'])[2]")).sendKeys("Martha");
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//input[@name='surname'])[2]")).sendKeys("Smith");
-        Thread.sleep(2000);
+        passengerDetails.clickTheAdult(2);
+        passengerDetails.selectTheTitle("Mrs", 2);
+        passengerDetails.provideTheFirstName("Martha", 2);
+        passengerDetails.provideTheSurname("Smith", 2); 
         
         // The child details
-        driver.findElement(By.xpath("(//input[@name='firstName'])[3]")).sendKeys("Adam");
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//input[@name='surname'])[3]")).sendKeys("Smith");
-        Thread.sleep(2000);
+        passengerDetails.provideTheFirstName("Patrick", 3);
+        passengerDetails.provideTheSurname("Smith", 3); 
         
         // Continue
-        driver.findElement(By.xpath("(//button[contains(text(), 'Continue')])[1]")).click();
-        Thread.sleep(2000);
+        passengerDetails.clickContinue();
+        
+        contactDetails = new ContactDetails(driver);
         
         // Email address
-        driver.findElement(By.xpath("//input[@placeholder='Enter email address']")).sendKeys("johndoe@johndoe.com");
-        Thread.sleep(2000);
+       	contactDetails.provideEmail("johndoe@johndoe.com");
         
         // Phone number
-        driver.findElement(By.xpath("(//select[@name='country'])[1]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//option[@label='Poland'])[1]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//input[@name='phoneNumber']")).sendKeys("543543543");
-        Thread.sleep(2000);
+       	contactDetails.selectTheCountry("Poland");
+       	contactDetails.provideThePhoneNumber("545343232");
         
         // Continue
-        driver.findElement(By.xpath("(//button[contains(text(), 'Continue')])[2]")).click();
-        Thread.sleep(2000);
-        
-        // Card type
-        driver.findElement(By.xpath("(//label[contains(text(), 'Card type')]//following::div)[1]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//option[@label='MasterCard']")).click();
-        Thread.sleep(2000);
+        contactDetails.clickContinue();
 	}
 
 	@When("^The user provides invalid credit card number details, i\\.e\\. \"([^\"]*)\", \"([^\"]*)\" and \"([^\"]*)\"$")
 	public void the_user_provides_invalid_credit_card_number_details_i_e_and(String creditCardNumber, String expiryDate, String cvv) throws Throwable {
-		// Card number
-        driver.findElement(By.xpath("//input[@placeholder='Enter card number']")).sendKeys(creditCardNumber);
-        Thread.sleep(2000);
         
-        char[] charArrayExpiryDate = expiryDate.toCharArray(); 
-
+        paymentDetails = new PaymentDetails(driver);
+      
+        // Card type and number
+        paymentDetails.chooseTheCardType("MasterCard");
+		paymentDetails.provideTheCardNumber(creditCardNumber);
+        
+        char[] charArrayExpiryDate = expiryDate.toCharArray();				// Converts string to charArray.
+        char[] yearChar = Arrays.copyOfRange(charArrayExpiryDate, 2, 6);	// Extracting the year from '5/2020'
+        char[] monthChar = Arrays.copyOfRange(charArrayExpiryDate, 0, 1);	// Extracting the month from '5/2020'
+        int year = Integer.parseInt(new String(yearChar));					// Converting char[] to int.
+        int month = Integer.parseInt(new String(monthChar));				// Converting char[] to int.
+        
         // Expiry month, year and CVV
-        driver.findElement(By.xpath("//select[@name='expiryMonth']")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//option[@label='"+charArrayExpiryDate[0]+"']")).click();	//  Gets the expiry month (5 in this case).
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//select[@name='expiryYear']")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//option[@label='2020']")).click();						//  Gets the expiry year (2020 in this case).
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("//input[@placeholder='CVV']")).sendKeys(cvv);
-        Thread.sleep(2000);
+        paymentDetails.provideTheExpiryMonthAndYear(month, year);
+        paymentDetails.provideTheCVV(cvv);
         
-        // Cardholder's name
-        driver.findElement(By.xpath("//input[@name='cardHolderName']")).sendKeys("John Smith");
-        Thread.sleep(2000);
-        
-        // Cardholder Address
-        driver.findElement(By.xpath("//input[@name='street']")).sendKeys("21 Sun Lane");
-        Thread.sleep(2000);
-        
-        // City
-        driver.findElement(By.xpath("//input[@name='city']")).sendKeys("Dublin");
-        Thread.sleep(2000);
-        
-        // Postal Code
-        driver.findElement(By.xpath("//input[@name='postcode']")).sendKeys("12345");
-        Thread.sleep(2000);
-        
-        // Country
-        driver.findElement(By.xpath("(//select[@name='country'])[2]")).click();
-        Thread.sleep(2000);
-        driver.findElement(By.xpath("(//option[@label='Poland'])[2]")).click();
-        Thread.sleep(2000);
+        // Cardholer's name, address, city, postcode and country
+        paymentDetails.provideTheCardholdersName("John Smith");
+        paymentDetails.provideTheCardholderAddress("21 Sun Lane");
+        paymentDetails.provideTheCity("Dublin");
+        paymentDetails.provideThePostcode("12345");
+        paymentDetails.provideTheCountry("Ireland");
         
         // Accept the conditions
-        driver.findElement(By.xpath("(//input[@name='acceptPolicy']//following::span)[1]")).click();
-        Thread.sleep(2000);
+        paymentDetails.acceptTheConditions();
 	}
 
 	@When("^Clicks Pay Now$")
 	public void clicks_Pay_Now() throws Throwable {
-		
 		// Click 'Pay Now'
-        driver.findElement(By.xpath("(//span[contains(text(), 'Pay Now')])[1]")).click();
-        Thread.sleep(2000);  
+		paymentDetails.clickPayNow(); 
 	}
 
 	@Then("^He gets an error message saying that the payment was not authorised$")
-	public void he_gets_an_error_message_saying_that_the_payment_was_not_authorised() throws Throwable {
-		
-	    System.out.println("wrong");    
+	public void he_gets_an_error_message_saying_that_the_payment_was_not_authorised() throws Throwable {	
+	    System.out.println("The payment was not authorised");    
 	}
 }
